@@ -65,7 +65,6 @@
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Projection_traits_xy_3.h>
-#include <CGAL/Delaunay_triangulation_2.h>
 #include <CGAL/convex_hull_2.h>
 
 // This should go away
@@ -1822,49 +1821,35 @@ GEOSConvexHull_r(GEOSContextHandle_t extHandle, const Geometry *g1)
         //handle->NOTICE_MESSAGE("I'm CGAL");
 
 	CoordinateSequence* cs = g1->getCoordinates();
-        typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
-        typedef Kernel Traits;
-        //typedef CGAL::Projection_traits_xy_3<Kernel> Traits;
-        //typedef Kernel::Point_3 Point_2;
-        typedef Kernel::Point_2 Point_2;        
+  typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
+  typedef CGAL::Projection_traits_xy_3<Kernel> Traits;
+  typedef Kernel::Point_3 Point_2;
 
-	std::vector<Traits::Point_2> points;
+  std::vector<Traits::Point_2> points;
 
-        int nbpts=cs->size();
-        points.reserve(nbpts);
-        for (int i=0;i<nbpts;++i){
-          //points.push_back(Point_2((*cs)[i].x,(*cs)[i].y,(*cs)[i].z));
-          points.push_back(Point_2((*cs)[i].x,(*cs)[i].y));
-        }
-	delete cs;
+  int nbpts=cs->size();
+  points.reserve(nbpts);
+  for (int i=0;i<nbpts;++i){
+    points.push_back(Point_2((*cs)[i].x,(*cs)[i].y,(*cs)[i].z));
+  }
+  delete cs;
 
-        //handle->NOTICE_MESSAGE("I'm CGAL after the loop");
+  //handle->NOTICE_MESSAGE("I'm CGAL after the loop");
 
-        //typedef CGAL::Delaunay_triangulation_2<Traits> DT2;
-        //DT2 dt2;
-        //dt2.insert(points.begin(),points.end());
+  
+  std::vector<Point_2> ch;
+  CGAL::convex_hull_2(points.begin(),points.end(),std::back_inserter(ch),Traits());
+  if(ch.size() > 1) ch.push_back(ch.front());
+  using namespace geos::geom; // TODO: make mat happy :)
 
-        //DT2::Vertex_circulator start=dt2.incident_vertices(dt2.infinite_vertex());  
-
-        //std::vector<Point_2> ch;
-        //DT2::Vertex_circulator curr=start;
-        //do{
-        //  ch.push_back( curr->point() );
-        //}while(++curr!=start);
-        
-        std::vector<Point_2> ch;
-        CGAL::convex_hull_2(points.begin(),points.end(),std::back_inserter(ch));
-        if(ch.size() > 1) ch.push_back(ch.front());
-	using namespace geos::geom; // TODO: make mat happy :)
-
-	typedef std::vector< Coordinate > CoordVect;
-	CoordVect* cv = new std::vector< Coordinate >();
-	cv->reserve(ch.size());
-        for ( std::vector<Point_2>::const_iterator it=ch.begin(), ite=ch.end(); it != ite; ++it )
-	{
-		//cv->push_back(Coordinate(it->x(), it->y(), it->z()));
-		cv->push_back(Coordinate(it->x(), it->y(), 0));
-	}
+  typedef std::vector< Coordinate > CoordVect;
+  CoordVect* cv = new std::vector< Coordinate >();
+  cv->reserve(ch.size());
+  //we could avoid the extra copy by using a dedicated output_iterator
+  for ( std::vector<Point_2>::const_iterator it=ch.begin(), ite=ch.end(); it != ite; ++it )
+  {
+    cv->push_back(Coordinate(it->x(), it->y(), it->z()));
+  }
 
 	const GeometryFactory *gf = g1->getFactory();
 	CoordinateSequence* newcs = new CoordinateArraySequence(cv, 3);
